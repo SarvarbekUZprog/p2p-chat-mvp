@@ -51,8 +51,6 @@ This project is a real-time peer-to-peer (P2P) chat application. This applicatio
 
 ## Authors
 
-- Your Name (replace with your actual name or GitHub profile link)
+- Sarvarbek Aminov
 
-## License
 
-This project is licensed under the [MIT License](LICENSE).
