@@ -19,11 +19,11 @@ This project is a real-time peer-to-peer (P2P) chat application. This applicatio
 2. **Clone the project**:
 
    ```bash
-   git clone https://github.com/YOUR_GITHUB_USERNAME/p2p-chat.git
+   git clone https://github.com/SarvarbekUZprog/p2p-chat-mvp.git
    cd p2p-chat
    ```
 
-   > Please replace `YOUR_GITHUB_USERNAME` with your actual GitHub username.
+   > Please replace `SarvarbekUZprog` with your actual GitHub username.
 
 3. **Install the required packages**:
 
