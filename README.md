@@ -1,6 +1,8 @@
 
 # P2P Chat Application
 
+![P2P Chat Screenshot](images/screenshot.png)
+
 This project is a real-time peer-to-peer (P2P) chat application. This application allows users to exchange messages via WebSocket.
 
 ## Technologies
@@ -39,7 +41,7 @@ This project is a real-time peer-to-peer (P2P) chat application. This applicatio
 
 5. **Open in the browser**:
 
-   Open your browser and go to `http://localhost:3000`. This will display your chat application.
+   Open your browser and go to `index.html`. This will display your chat application.
 
 ## How it Works
 
