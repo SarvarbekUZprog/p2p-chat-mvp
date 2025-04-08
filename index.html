@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>P2P Chat Application</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Butun ekran uchun dizayn */
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-900 via-purple-900 to-gray-900 text-white font-sans flex flex-col">
+
+  <div class="flex-1 flex flex-col w-full max-w-3xl h-full mx-auto backdrop-blur-md bg-white/10 border border-white/20 rounded-2xl shadow-2xl overflow-hidden">
+
+    <!-- Top Info -->
+    <div class="p-4 bg-white/10 border-b border-white/20">
+      <h1 class="text-xl text-gray-300">P2P Chat</h1>
+      <div class="text-sm text-gray-300">Your ID:</div>
+      <div id="myId" class="mt-1 bg-black/30 text-green-400 p-2 rounded text-sm break-all border border-white/10">Loading...</div>
+    </div>
+
+    <!-- Connect Section -->
+    <div class="p-4 space-y-3 bg-white/5 border-b border-white/10">
+      <div>
+        <label class="text-sm text-gray-300">Connect to:</label>
+        <input id="peerId" type="text" placeholder="Paste your friend's token..."
+               class="w-full p-3 rounded bg-black/30 text-sm placeholder-gray-400 border border-white/10 text-white"/>
+      </div>
+      <button onclick="startConnection()"
+              class="w-full bg-indigo-600 hover:bg-indigo-700 transition-all duration-300 text-white px-4 py-2 rounded shadow text-base">
+        Connect
+      </button>
+      <div id="statusMessage" class="text-center text-sm text-gray-300">Waiting to connect...</div>
+    </div>
+
+    <!-- Chat Messages -->
+    <div id="chat" class="flex-1 overflow-y-auto px-4 py-3 space-y-2 bg-black/20">
+      <p class="text-gray-400 text-sm text-center" id="chatStatus">No messages yet...</p>
+    </div>
+
+    <!-- Input Message -->
+    <div class="flex items-center gap-2 p-4 bg-white/10 border-t border-white/10">
+      <input id="msg" type="text" placeholder="Type a message..."
+             class="flex-1 p-3 rounded bg-black/30 border border-white/10 placeholder-gray-400 text-white text-sm"/>
+      <button onclick="sendMsg()"
+              class="bg-green-600 hover:bg-green-700 transition-all duration-300 text-white px-4 py-2 rounded text-sm shadow">
+        ➤
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Script -->
+  <script>
+    let myId, dc;
+    const peerIdInput = document.getElementById('peerId');
+    const chat = document.getElementById('chat');
+    const msgBox = document.getElementById('msg');
+    const myIdDiv = document.getElementById('myId');
+    const statusMessage = document.getElementById('statusMessage');
+    const chatStatus = document.getElementById('chatStatus');
+
+    const ws = new WebSocket("ws://localhost:3000");
+    const pc = new RTCPeerConnection();
+
+    ws.onmessage = async e => {
+      const data = JSON.parse(e.data);
+
+      if (data.type === 'your-id') {
+        myId = data.id;
+        myIdDiv.textContent = myId;
+      } else if (data.sdp) {
+        await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+        if (data.sdp.type === 'offer') {
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          ws.send(JSON.stringify({ type: "signal", from: myId, to: data.from, sdp: answer }));
+        }
+        updateConnectionStatus(true);  // Muvaffaqiyatli ulanish holatini yangilash
+      } else if (data.candidate) {
+        pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+      }
+    };
+
+    pc.onicecandidate = e => {
+      if (e.candidate) {
+        ws.send(JSON.stringify({
+          type: 'signal',
+          from: myId,
+          to: peerIdInput.value,
+          candidate: e.candidate
+        }));
+      }
+    };
+
+    pc.ondatachannel = e => {
+      dc = e.channel;
+      dc.onopen = () => updateConnectionStatus(true);
+      dc.onmessage = e => {
+        const data = JSON.parse(e.data);
+        appendMessage(data.text, data.from);
+      };
+    };
+
+    function startConnection() {
+      statusMessage.textContent = "Connecting...";
+
+      dc = pc.createDataChannel("chat");
+      dc.onmessage = e => {
+        const data = JSON.parse(e.data);
+        appendMessage(data.text, data.from);
+      };
+
+      pc.createOffer().then(offer => {
+        pc.setLocalDescription(offer);
+        ws.send(JSON.stringify({
+          type: 'signal',
+          from: myId,
+          to: peerIdInput.value,
+          sdp: offer
+        }));
+      });
+
+      setTimeout(() => {
+        if (statusMessage.textContent.includes("Connecting")) {
+          updateConnectionStatus(false);  // Muvaffaqiyatsiz ulanish holatini yangilash
+        }
+      }, 5000);
+    }
+
+    function sendMsg() {
+      const message = msgBox.value.trim();
+      if (message && dc?.readyState === "open") {
+        const data = { from: myId, text: message };
+        dc.send(JSON.stringify(data));
+        appendMessage(message, myId, true);
+        msgBox.value = '';
+      }
+    }
+
+    function appendMessage(text, fromId, isSelf = false) {
+      const div = document.createElement('div');
+      div.className = `max-w-[70%] p-3 rounded-xl shadow text-sm whitespace-pre-wrap break-words ${
+        isSelf ? 'bg-indigo-600 text-white self-end ml-auto' : 'bg-gray-800 text-white mr-auto'
+      }`;
+      div.innerHTML = `<div class="text-xs opacity-70 mb-1">${fromId}</div>${text}`;
+      chat.appendChild(div);
+      chatStatus.style.display = 'none';
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function updateConnectionStatus(success) {
+      statusMessage.textContent = success ? "Connected ✅" : "Failed ❌";
+      statusMessage.className = `text-center text-sm ${success ? 'text-green-400' : 'text-red-400'}`;
+    }
+  </script>
+</body>
+</html>
